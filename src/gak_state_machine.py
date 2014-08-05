@@ -68,11 +68,11 @@ class MasterClass:
                 MoveToRetractionStagingArea(self.davinciArm),
                 transitions={'success':'PLAN_TRAJ_TO_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data2'})
 
-            smach.StateMachine.add('PLAN_TRAJ_TO_CUT_POINT_LEFT',
+            smach.StateMachine.add('PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT',
                 ReturnToRetractionStagingAreaWithBlock(self.davinciArm),
-                transitions={'success':'MOVE_TO_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_CUT_POINT_LEFT'}, remapping = {'cutPointPlanning':'sm_data2'})
+                transitions={'success':'MOVE_TO_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT'}, remapping = {'cutPointPlanning':'sm_data2'})
 
-            smach.StateMachine.add('MOVE_TO_CUT_POINT',
+            smach.StateMachine.add('MOVE_TO_PRE_CUT_POINT',
                 MoveToDropOffStagingArea(self.davinciArm),
                 transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_ELFT'}, remapping = {'dropOffStagingPose': 'sm_data3'})
 
@@ -109,7 +109,8 @@ class MasterClass:
                 break
             rate.sleep()
 
-        self.davinciArm.stop()
+        self.davinciArmRight.stop()
+        self.davinciArmLeft.stop()
 
 def main():
     smach.loginfo("Starting main...")
