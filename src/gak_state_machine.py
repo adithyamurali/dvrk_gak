@@ -29,66 +29,66 @@ class MasterClass:
 
         with self.state_machine:
             smach.StateMachine.add('START',
-                Start(self.davinciArm),
+                Start(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'IDENTIFY_GRASP_POINT'})
 
             smach.StateMachine.add('IDENTIFY_GRASP_POINT',
-                MoveToRetractionStagingArea(self.davinciArm),
+                IdentifyGraspPoint(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'PLAN_TRAJ_TO_GRASP_POINT_RIGHT', 'failure': 'IDENTIFY_GRASP_POINT'}, remapping ={'graspPoint':'sm_data1'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_GRASP_POINT_RIGHT',
-                HomePosition(self.davinciArm),
-                transitions={'success':'MOVE_TO_GRASP_POINT', 'failure': 'PLAN_TRAJ_TO_GRASP_POINT_RIGHT'}, remapping ={'graspPointPlanning':'sm_data1'})
+                PlanTrajToGraspPointRight(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'MOVE_TO_GRASP_POINT', 'failure': 'PLAN_TRAJ_TO_GRASP_POINT_RIGHT'})
 
             smach.StateMachine.add('MOVE_TO_GRASP_POINT',
-                MoveToGraspPoint(self.davinciArm),
-                transitions={'success':'GRASP_GAK', 'failure':'HOME_POSITION_RIGHT'})
+                MoveToGraspPoint(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'GRASP_GAK', 'failure':'HOME_POSITION_RIGHT'}, remapping ={'graspPointExecute':'sm_data1'})
 
             smach.StateMachine.add('HOME_POSITION_RIGHT',
-                MoveToGraspPoint(self.davinciArm),
+                HomePositionRight(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'IDENTIFY_GRASP_POINT', 'failure':'HOME_POSITION_RIGHT'})
 
             smach.StateMachine.add('GRASP_GAK',
-                GraspBlock(self.davinciArm),
+                GraspGak(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'RETRACT_GAK'})
 
             smach.StateMachine.add('RETRACT_GAK',
-                GraspBlock(self.davinciArm),
+                RetractGak(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'CHECK_GRASP'})
 
             smach.StateMachine.add('CHECK_GRASP',
-                CheckGrasp(self.davinciArm),
+                CheckGrasp(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'IDENTIFY_CUT_POINT', 'failure': 'RELEASE_GRIPPERS_NO_GAK'})
 
             smach.StateMachine.add('RELEASE_GRIPPERS_NO_GAK',
-                ReleaseGrippersNoBlock(self.davinciArm),
+                ReleaseGrippersNoGak(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'HOME_POSITION_RIGHT', 'failure': 'RELEASE_GRIPPERS_NO_GAK'})
 
             smach.StateMachine.add('IDENTIFY_CUT_POINT',
-                MoveToRetractionStagingArea(self.davinciArm),
+                IdentifyCutPoint(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'PLAN_TRAJ_TO_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data2'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT',
-                ReturnToRetractionStagingAreaWithBlock(self.davinciArm),
-                transitions={'success':'MOVE_TO_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT'}, remapping = {'cutPointPlanning':'sm_data2'})
+                PlanTrajToPreCutPointLeft(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'MOVE_TO_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT'})
 
             smach.StateMachine.add('MOVE_TO_PRE_CUT_POINT',
-                MoveToDropOffStagingArea(self.davinciArm),
-                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_ELFT'}, remapping = {'dropOffStagingPose': 'sm_data3'})
+                MoveToPreCutPoint(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_ELFT'}, remapping = {'cutPointPlanning':'sm_data2'})
 
             smach.StateMachine.add('CUTTING_ACTION',
-                MoveToDropOffPoint(self.davinciArm),
+                CuttingAction(self.davinciArmLeft, self.davinciArmRight),
                 transitions={'success':'CHECK_CUT'})
 
             smach.StateMachine.add('CHECK_CUT',
-                ReleaseGripper(self.davinciArm),
-                transitions={'success':'SUCCESS', 'failure': 'HOME_POSITION_ELFT'})
+                CheckCut(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'SUCCESS', 'failure': 'IDENTIFY_CUT_POINT'})
 
             smach.StateMachine.add('HOME_POSITION_LEFT',
-                MoveToGraspPoint(self.davinciArm),
-                transitions={'success':'IDENTIFY_CUT_POINT', 'failure':'HOME_POSITION_LEFT'})
+                HomePositionLeft(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'IDENTIFY_CUT_POINT', 'failure':'ABORT'})
 
-            # smach.StateMachine.add('ABORT', Abort(self.davinciArm), transitions={'failure': 'FAILURE'})
+            smach.StateMachine.add('ABORT', Abort(self.davinciArmLeft, self.davinciArmRight), transitions={'failure': 'FAILURE'})
 
     def run(self):
         self.davinciArmRight.start()
