@@ -13,7 +13,7 @@ from davinci_utils import raven_constants
 from davinci_trajectory.raven_controller import RavenController
 from davinci_trajectory.raven_arm import RavenArm
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped
 
 import IPython
 
@@ -57,14 +57,13 @@ class Start(MasterClass):
 class IdentifyGraspPoint(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success'], output_keys = ['graspPoint'])
+        smach.State.__init__(self, outcomes = ['success', 'failure'], output_keys = ['graspPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
-        self.graspPoint = None
+        self.graspPointCurr = None
         self.counter = 0
 
         rospy.Subscriber("/gak/black_dot_point", PointStamped, self.black_dot_point_callback)
-
 
         self.grasp_point_pub = rospy.Publisher("/gak/grasp_point", PoseStamped)
 
@@ -79,13 +78,13 @@ class IdentifyGraspPoint(MasterClass):
             rospy.sleep(0.1)
             # ig self.graspPoint(
             # Break from loop when grasp point is identified
-        userdata.graspPointExecute = self.graspPoint
+        userdata.graspPoint = self.graspPointCurr
         return 'success'
 
 class PlanTrajToGraspPointRight(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success'])
+        smach.State.__init__(self, outcomes = ['success', 'failure'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
         self.graspPoint = None
@@ -94,10 +93,32 @@ class PlanTrajToGraspPointRight(MasterClass):
         print "State: PlanTrajToGraspPointRight"
         return 'success'
 
+class MoveToPreGraspPoint(MasterClass):
+    def __init__(self, davinciArmLeft, davinciArmRight):
+        super(self.__class__, self).__init__()
+        smach.State.__init__(self, outcomes = ['success', 'failure'], input_keys = ['graspPoint'])
+        self.davinciArmRight = davinciArmRight
+        self.davinciArmLeft = davinciArmLeft
+        self.graspPoint = None
+
+    def execute(self, userdata):
+        print "State: MoveToPreGraspPoint"
+
+        rospy.loginfo('Execute MoveToPreGraspPoint')
+        raw_input()
+
+        # self.davinciArmRight.setGripperPositionDaVinci(0.3)
+        pose = userdata.graspPoint._obj
+        # pose.position.
+        self.davinciArmRight.executeInterpolatedTrajectory(pose)
+        return 'success'
+
+
+
 class MoveToGraspPoint(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success', 'failure'], input_keys = ['graspPointExecute'])
+        smach.State.__init__(self, outcomes = ['success', 'failure'], input_keys = ['graspPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
         self.graspPoint = None
@@ -108,9 +129,9 @@ class MoveToGraspPoint(MasterClass):
         rospy.loginfo('Execute MoveToGraspPoint')
         raw_input()
 
-        # self.davinciArm.setGripperPositionDaVinci(0.3)
-        # pose = userdata.graspPointExecute._obj
-        # self.davinciArm.executeInterpolatedTrajectory(pose)
+        self.davinciArmRight.setGripperPositionDaVinci(0.3)
+        pose = userdata.graspPoint._obj
+        self.davinciArmRight.executeInterpolatedTrajectory(pose)
 
         return 'success'
 
@@ -127,7 +148,7 @@ class HomePositionRight(MasterClass):
         rospy.loginfo('Execute HomePositionRight')
         raw_input()
 
-        # self.davinciArmRight.executeInterpolatedTrajectory(self.homePoseRight)
+        self.davinciArmRight.executeInterpolatedTrajectory(self.homePoseRight)
 
         return 'success'
 
@@ -151,7 +172,7 @@ class HomePositionLeft(MasterClass):
 class GraspGak(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes=['success', 'failure'])
+        smach.State.__init__(self, outcomes=['success'])
         self.davinciArmLeft = davinciArmLeft
         self.davinciArmRight = davinciArmRight
 
@@ -160,27 +181,26 @@ class GraspGak(MasterClass):
 
         rospy.loginfo('Enter to Grasp Gak')
         raw_input()
-
+        self.davinciArmRight.setGripperPositionDaVinci(-0.1)
+        currPoseRight = self.davinciArmRight.getGripperPose()
+        self.davinciArmRight.goToGripperPose(currPoseRight)
         rospy.sleep(2)
-        # for i in range(8):
-        #     self.davinciArm.setGripperPositionDaVinci(0.10 * i)
-        #     self.davinciArm.goToGripperPose(pose)
-        # self.davinciArm.executeInterpolatedTrajectory(self.dropOffPose)
         return 'success'
 
 class RetractGak(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success', 'failure'])
+        smach.State.__init__(self, outcomes = ['success'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
 
     def execute(self, userdata):
         print "State: Retract Gak"
-
         rospy.loginfo('Enter to Retract Gak')
         raw_input()
-
+        currPoseRight = self.davinciArmRight.getGripperPose()
+        # Modify retraction point to be have offset about grasp point
+        self.davinciArmRight.goToGripperPose(currPoseRight)
         return 'success'
 
 class CheckGrasp(MasterClass):
@@ -215,7 +235,7 @@ class IdentifyCutPoint(MasterClass):
         smach.State.__init__(self, outcomes = ['success', 'failure'], output_keys = ['cutPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
-        self.cutPoint = None
+        self.cutPointCurr = None
 
     def execute(self, userdata):
         print "State: IdentifyCutPoint"
@@ -223,13 +243,13 @@ class IdentifyCutPoint(MasterClass):
         while True:
             rospy.sleep(2)
             # Break when cut point is published
-        userdata.cutPointExecute = self.cutPoint
+        userdata.cutPoint = self.cutPointCurr
         return 'success'
 
 class PlanTrajToPreCutPointLeft(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success'])
+        smach.State.__init__(self, outcomes = ['success', 'failure'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
 
@@ -240,7 +260,7 @@ class PlanTrajToPreCutPointLeft(MasterClass):
 class MoveToPreCutPoint(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes=['success', 'failure'], input_keys = ['cutPointExecute'])
+        smach.State.__init__(self, outcomes=['success', 'failure'], input_keys = ['cutPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
 
@@ -251,7 +271,7 @@ class MoveToPreCutPoint(MasterClass):
 class CuttingAction(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes=['success', 'failure'])
+        smach.State.__init__(self, outcomes=['success'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
 

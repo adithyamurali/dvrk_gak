@@ -38,11 +38,15 @@ class MasterClass:
 
             smach.StateMachine.add('PLAN_TRAJ_TO_GRASP_POINT_RIGHT',
                 PlanTrajToGraspPointRight(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'MOVE_TO_GRASP_POINT', 'failure': 'PLAN_TRAJ_TO_GRASP_POINT_RIGHT'})
+                transitions={'success':'MOVE_TO_PRE_GRASP_POINT', 'failure': 'PLAN_TRAJ_TO_GRASP_POINT_RIGHT'})
+
+            smach.StateMachine.add('MOVE_TO_PRE_GRASP_POINT',
+                MoveToPreGraspPoint(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'MOVE_TO_GRASP_POINT', 'failure':'HOME_POSITION_RIGHT'}, remapping ={'graspPoint':'sm_data1'})
 
             smach.StateMachine.add('MOVE_TO_GRASP_POINT',
                 MoveToGraspPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'GRASP_GAK', 'failure':'HOME_POSITION_RIGHT'}, remapping ={'graspPointExecute':'sm_data1'})
+                transitions={'success':'GRASP_GAK', 'failure':'HOME_POSITION_RIGHT'}, remapping ={'graspPoint':'sm_data1'})
 
             smach.StateMachine.add('HOME_POSITION_RIGHT',
                 HomePositionRight(self.davinciArmLeft, self.davinciArmRight),
@@ -66,15 +70,15 @@ class MasterClass:
 
             smach.StateMachine.add('IDENTIFY_CUT_POINT',
                 IdentifyCutPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'PLAN_TRAJ_TO_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data2'})
+                transitions={'success':'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data2'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT',
                 PlanTrajToPreCutPointLeft(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'MOVE_TO_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT'})
+                transitions={'success':'MOVE_TO_PRE_CUT_POINT', 'failure': 'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT'})
 
             smach.StateMachine.add('MOVE_TO_PRE_CUT_POINT',
                 MoveToPreCutPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_ELFT'}, remapping = {'cutPointPlanning':'sm_data2'})
+                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_LEFT'}, remapping = {'cutPoint':'sm_data2'})
 
             smach.StateMachine.add('CUTTING_ACTION',
                 CuttingAction(self.davinciArmLeft, self.davinciArmRight),
