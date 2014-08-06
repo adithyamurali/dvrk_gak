@@ -61,6 +61,7 @@ class IdentifyGraspPoint(MasterClass):
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
         self.graspPoint = None
+        self.black_dot_point = None
         self.counter = 0
 
         rospy.Subscriber("/gak/black_dot_point", PointStamped, self.black_dot_point_callback)
@@ -70,15 +71,21 @@ class IdentifyGraspPoint(MasterClass):
 
     def black_dot_point_callback(self, msg):
         if self.counter == 0:
-            self.graspPoint = tfx.point(msg)
+            self.black_dot_point = tfx.point(msg)
             self.counter += 1
     
     def execute(self, userdata):
         print "State: IdentifyGraspPoint"
         while True:
             rospy.sleep(0.1)
-            # ig self.graspPoint(
-            # Break from loop when grasp point is identified
+            if self.black_dot_point is not None:
+                break
+
+        pt = tfx.convertToFrame(self.black_dot_point, '/two_remote_center_link')
+        pose = tfx.pose(pt)
+        self.graspPoint = pose.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,0,-90))
+        self.grasp_point_pub.publish(graspPoint.msg.PoseStamped())
+
         userdata.graspPointExecute = self.graspPoint
         return 'success'
 
