@@ -64,26 +64,23 @@ class IdentifyGraspPoint(MasterClass):
         self.black_dot_point = None
         self.counter = 0
 
-        rospy.Subscriber("/gak/black_dot_point", PointStamped, self.black_dot_point_callback)
+        rospy.Subscriber("/gak/grasp_point", PoseStamped, self.grasp_point_callback)
 
-        self.grasp_point_pub = rospy.Publisher("/gak/grasp_point", PoseStamped)
 
-    def black_dot_point_callback(self, msg):
+    def grasp_point_callback(self, msg):
         if self.counter == 0:
-            self.black_dot_point = tfx.point(msg)
+            self.graspPoint = tfx.pose(msg)
             self.counter += 1
-    
+
     def execute(self, userdata):
         print "State: IdentifyGraspPoint"
         while True:
             rospy.sleep(0.1)
-            if self.black_dot_point is not None:
+            if self.graspPoint is not None:
                 break
-        pt = tfx.convertToFrame(self.black_dot_point, '/two_remote_center_link')
-        pose = tfx.pose(pt)
-        self.graspPoint = pose.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,0,-90))
-        self.grasp_point_pub.publish(graspPoint.msg.PoseStamped())
-
+        self.graspPoint.position.y += -0.014
+        self.graspPoint.position.x += 0.005
+        self.graspPoint.position.z += -0.016
         userdata.graspPoint = self.graspPoint
         return 'success'
 
@@ -110,16 +107,16 @@ class MoveToPreGraspPoint(MasterClass):
     def execute(self, userdata):
         print "State: MoveToPreGraspPoint"
 
+        pose = tfx.pose(userdata.graspPoint._obj, copy = True)
+        print "Grasp Point", pose
+
+        pose.position.z += 0.012
+        print "Pre Grasp Point", pose
+
         rospy.loginfo('Execute MoveToPreGraspPoint')
         raw_input()
-
-        # self.davinciArmRight.setGripperPositionDaVinci(0.3)
-        pose = userdata.graspPoint._obj
-        # pose.position.
         self.davinciArmRight.executeInterpolatedTrajectory(pose)
         return 'success'
-
-
 
 class MoveToGraspPoint(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
@@ -132,11 +129,11 @@ class MoveToGraspPoint(MasterClass):
     def execute(self, userdata):
         print "State: MoveToGraspPoint"
 
+        pose = userdata.graspPoint._obj
         rospy.loginfo('Execute MoveToGraspPoint')
         raw_input()
 
-        self.davinciArmRight.setGripperPositionDaVinci(0.3)
-        pose = userdata.graspPoint._obj
+        self.davinciArmRight.setGripperPositionDaVinci(1)
         self.davinciArmRight.executeInterpolatedTrajectory(pose)
 
         return 'success'
@@ -154,7 +151,7 @@ class HomePositionRight(MasterClass):
         rospy.loginfo('Execute HomePositionRight')
         raw_input()
 
-        self.davinciArmRight.executeInterpolatedTrajectory(self.homePoseRight)
+        # self.davinciArmRight.executeInterpolatedTrajectory(self.homePoseRight)
 
         return 'success'
 
@@ -187,9 +184,10 @@ class GraspGak(MasterClass):
 
         rospy.loginfo('Enter to Grasp Gak')
         raw_input()
-        self.davinciArmRight.setGripperPositionDaVinci(-0.1)
+        self.davinciArmRight.setGripperPositionDaVinci(-1)
         currPoseRight = self.davinciArmRight.getGripperPose()
-        self.davinciArmRight.goToGripperPose(currPoseRight)
+
+        self.davinciArmRight.executeInterpolatedTrajectory(currPoseRight)
         rospy.sleep(2)
         return 'success'
 
@@ -205,8 +203,9 @@ class RetractGak(MasterClass):
         rospy.loginfo('Enter to Retract Gak')
         raw_input()
         currPoseRight = self.davinciArmRight.getGripperPose()
+        currPoseRight.position.z += 0.03
+        self.davinciArmRight.executeInterpolatedTrajectory(currPoseRight)
         # Modify retraction point to be have offset about grasp point
-        self.davinciArmRight.goToGripperPose(currPoseRight)
         return 'success'
 
 class CheckGrasp(MasterClass):
@@ -241,15 +240,25 @@ class IdentifyCutPoint(MasterClass):
         smach.State.__init__(self, outcomes = ['success', 'failure'], output_keys = ['cutPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
-        self.cutPointCurr = None
+        self.cut_point_pub = rospy.Publisher('/gak/cut_point_pose', PoseStamped)
 
     def execute(self, userdata):
         print "State: IdentifyCutPoint"
 
-        while True:
-            rospy.sleep(2)
-            # Break when cut point is published
-        userdata.cutPoint = self.cutPointCurr
+        rospy.loginfo('Enter to Identity Cut Point')
+        raw_input()
+
+        currPoseRight = self.davinciArmRight.getGripperPose()
+        currPoseRight.position.z += -0.01
+        currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(0,0,-60)).as_tf()*tfx.pose(tfx.tb_angles(-90,0,0))
+
+        cutPointCurr = tfx.convertToFrame(currPoseRight, '/one_remote_center_link')
+        cutPointCurr.position.y += 0.007
+        cutPointCurr.position.z += -0.01
+        self.cut_point_pub.publish(cutPointCurr.msg.PoseStamped())
+
+        userdata.cutPoint = cutPointCurr
+
         return 'success'
 
 class PlanTrajToPreCutPointLeft(MasterClass):
@@ -272,6 +281,13 @@ class MoveToPreCutPoint(MasterClass):
 
     def execute(self, userdata):
         print "State: MoveToPreCutPoint"
+        preCutPoint = tfx.pose(userdata.cutPoint._obj, copy = True)
+        preCutPoint.position.x += 0.02
+        print "Left Arm precut", preCutPoint
+        rospy.loginfo('Enter to MoveToPreCutPoint')
+        raw_input()
+        self.davinciArmLeft.setGripperPositionDaVinci(1)
+        self.davinciArmLeft.executeInterpolatedTrajectory(preCutPoint)
         return 'success'
 
 class CuttingAction(MasterClass):
@@ -294,9 +310,9 @@ class CheckCut(MasterClass):
 
     def execute(self, userdata):
         print "State: CheckCut"
-        pose = userdata.retractionStagingPose._obj
-        pose.position.x += 0.002
-        self.davinciArm.executeInterpolatedTrajectory(pose)
+        # pose = userdata.retractionStagingPose._obj
+        # pose.position.x += 0.002
+        # self.davinciArm.executeInterpolatedTrajectory(pose)
         return 'success'
 
 class Abort(MasterClass):
