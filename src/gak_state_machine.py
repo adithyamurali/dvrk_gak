@@ -82,7 +82,7 @@ class MasterClass:
 
             smach.StateMachine.add('CUTTING_ACTION',
                 CuttingAction(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'CHECK_CUT'})
+                transitions={'success':'CHECK_CUT'}, remapping = {'cutPoint': 'sm_data2'})
 
             smach.StateMachine.add('CHECK_CUT',
                 CheckCut(self.davinciArmLeft, self.davinciArmRight),

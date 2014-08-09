@@ -79,8 +79,8 @@ class IdentifyGraspPoint(MasterClass):
             if self.graspPoint is not None:
                 break
         self.graspPoint.position.y += -0.014
-        self.graspPoint.position.x += 0.005
-        self.graspPoint.position.z += -0.016
+        self.graspPoint.position.x += 0.003
+        self.graspPoint.position.z += -0.015
         userdata.graspPoint = self.graspPoint
         return 'success'
 
@@ -129,12 +129,12 @@ class MoveToGraspPoint(MasterClass):
     def execute(self, userdata):
         print "State: MoveToGraspPoint"
 
-        pose = userdata.graspPoint._obj
+        graspPoint = userdata.graspPoint._obj
         rospy.loginfo('Execute MoveToGraspPoint')
         raw_input()
 
         self.davinciArmRight.setGripperPositionDaVinci(1)
-        self.davinciArmRight.executeInterpolatedTrajectory(pose)
+        self.davinciArmRight.executeInterpolatedTrajectory(graspPoint)
 
         return 'success'
 
@@ -188,7 +188,6 @@ class GraspGak(MasterClass):
         currPoseRight = self.davinciArmRight.getGripperPose()
 
         self.davinciArmRight.executeInterpolatedTrajectory(currPoseRight)
-        rospy.sleep(2)
         return 'success'
 
 class RetractGak(MasterClass):
@@ -203,7 +202,8 @@ class RetractGak(MasterClass):
         rospy.loginfo('Enter to Retract Gak')
         raw_input()
         currPoseRight = self.davinciArmRight.getGripperPose()
-        currPoseRight.position.z += 0.03
+        currPoseRight.position.z += 0.04
+        # self.davinciArmRight.goToGripperPose(currPoseRight, speed=0.008)
         self.davinciArmRight.executeInterpolatedTrajectory(currPoseRight)
         # Modify retraction point to be have offset about grasp point
         return 'success'
@@ -249,12 +249,12 @@ class IdentifyCutPoint(MasterClass):
         raw_input()
 
         currPoseRight = self.davinciArmRight.getGripperPose()
-        currPoseRight.position.z += -0.01
-        currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(0,0,-60)).as_tf()*tfx.pose(tfx.tb_angles(-90,0,0))
+        currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,-75,0))
+        currPoseRight.position.y += 0.0085
+        currPoseRight.position.z += -0.025
+        currPoseRight.position.x += 0.008
 
         cutPointCurr = tfx.convertToFrame(currPoseRight, '/one_remote_center_link')
-        cutPointCurr.position.y += 0.007
-        cutPointCurr.position.z += -0.01
         self.cut_point_pub.publish(cutPointCurr.msg.PoseStamped())
 
         userdata.cutPoint = cutPointCurr
@@ -282,7 +282,11 @@ class MoveToPreCutPoint(MasterClass):
     def execute(self, userdata):
         print "State: MoveToPreCutPoint"
         preCutPoint = tfx.pose(userdata.cutPoint._obj, copy = True)
-        preCutPoint.position.x += 0.02
+
+        preCutPoint = tfx.convertToFrame(preCutPoint, '/two_remote_center_link')
+        preCutPoint.position.x += 0.04
+        preCutPoint = tfx.convertToFrame(preCutPoint, '/one_remote_center_link')
+
         print "Left Arm precut", preCutPoint
         rospy.loginfo('Enter to MoveToPreCutPoint')
         raw_input()
@@ -293,12 +297,19 @@ class MoveToPreCutPoint(MasterClass):
 class CuttingAction(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes=['success'])
+        smach.State.__init__(self, outcomes=['success'], input_keys = ['cutPoint'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
 
     def execute(self, userdata):
         print "State: CuttingAction"
+        cutPoint = tfx.pose(userdata.cutPoint._obj, copy = True)
+        print "Cut Point: ", cutPoint
+        rospy.loginfo('Enter to MoveToCutPoint')
+        raw_input()
+        self.davinciArmLeft.executeInterpolatedTrajectory(cutPoint)
+        self.davinciArmLeft.setGripperPositionDaVinci(-2)
+        self.davinciArmLeft.executeInterpolatedTrajectory(cutPoint)
         return 'success'
 
 class CheckCut(MasterClass):
