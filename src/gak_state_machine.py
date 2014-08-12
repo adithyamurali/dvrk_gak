@@ -34,7 +34,7 @@ class MasterClass:
 
             smach.StateMachine.add('IDENTIFY_GRASP_POINT',
                 IdentifyGraspPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'PLAN_TRAJ_TO_GRASP_POINT_RIGHT', 'failure': 'IDENTIFY_GRASP_POINT'}, remapping ={'graspPoint':'sm_data1'})
+                transitions={'success':'PLAN_TRAJ_TO_GRASP_POINT_RIGHT', 'failure': 'IDENTIFY_GRASP_POINT'}, remapping ={'graspPoint':'sm_data1', 'counter':'sm_data2', 'maxDebris':'sm_data3'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_GRASP_POINT_RIGHT',
                 PlanTrajToGraspPointRight(self.davinciArmLeft, self.davinciArmRight),
@@ -70,7 +70,7 @@ class MasterClass:
 
             smach.StateMachine.add('IDENTIFY_CUT_POINT',
                 IdentifyCutPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data2'})
+                transitions={'success':'PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT', 'failure': 'IDENTIFY_CUT_POINT'}, remapping ={'cutPoint':'sm_data4'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_PRE_CUT_POINT_LEFT',
                 PlanTrajToPreCutPointLeft(self.davinciArmLeft, self.davinciArmRight),
@@ -78,15 +78,19 @@ class MasterClass:
 
             smach.StateMachine.add('MOVE_TO_PRE_CUT_POINT',
                 MoveToPreCutPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_LEFT'}, remapping = {'cutPoint':'sm_data2'})
+                transitions={'success':'CUTTING_ACTION', 'failure': 'HOME_POSITION_LEFT'}, remapping = {'cutPoint':'sm_data4'})
 
             smach.StateMachine.add('CUTTING_ACTION',
                 CuttingAction(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'CHECK_CUT'}, remapping = {'cutPoint': 'sm_data2'})
+                transitions={'success':'CHECK_CUT'}, remapping = {'cutPoint': 'sm_data4'})
 
             smach.StateMachine.add('CHECK_CUT',
                 CheckCut(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'SUCCESS', 'failure': 'IDENTIFY_CUT_POINT'})
+                transitions={'success':'CLEANING', 'failure': 'IDENTIFY_CUT_POINT'})
+
+            smach.StateMachine.add('CLEANING',
+                Cleaning(self.davinciArmLeft, self.davinciArmRight),
+                transitions={'success':'SUCCESS', 'loop': 'IDENTIFY_GRASP_POINT'}, remapping = {'counter':'sm_data2', 'maxDebris':'sm_data3'})
 
             smach.StateMachine.add('HOME_POSITION_LEFT',
                 HomePositionLeft(self.davinciArmLeft, self.davinciArmRight),
