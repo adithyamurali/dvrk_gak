@@ -89,7 +89,7 @@ class IdentifyGraspPoint(MasterClass):
             self.counterDebris += 1
         self.graspPoint = self.allGraspPoints[self.counterDebris]
         self.graspPoint.position.y += -0.014
-        self.graspPoint.position.x += -0.008
+        self.graspPoint.position.x += -0.009
         self.graspPoint.position.z += -0.015
         userdata.graspPoint = self.graspPoint
         userdata.counter = self.counterDebris
@@ -267,7 +267,7 @@ class IdentifyCutPoint(MasterClass):
         currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,-75,0))
         currPoseRight.position.y += 0.0085
         currPoseRight.position.z += -0.025
-        currPoseRight.position.x += 0.006
+        currPoseRight.position.x += 0.004
         currPoseRight.stamp = None
         cutPointCurr = tfx.convertToFrame(currPoseRight, '/one_remote_center_link')
         self.cut_point_pub.publish(cutPointCurr.msg.PoseStamped())
@@ -325,7 +325,7 @@ class CuttingAction(MasterClass):
         # raw_input()
 
         self.davinciArmLeft.executeInterpolatedTrajectory(cutPoint)
-        self.davinciArmLeft.setGripperPositionDaVinci(-2)
+        self.davinciArmLeft.setGripperPositionDaVinci(-2.2)
         self.davinciArmLeft.executeInterpolatedTrajectory(cutPoint)
         return 'success'
 
