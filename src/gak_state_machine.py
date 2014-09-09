@@ -34,7 +34,8 @@ class MasterClass:
 
             smach.StateMachine.add('IDENTIFY_GRASP_POINT',
                 IdentifyGraspPoint(self.davinciArmLeft, self.davinciArmRight),
-                transitions={'success':'PLAN_TRAJ_TO_GRASP_POINT_RIGHT', 'failure': 'IDENTIFY_GRASP_POINT'}, remapping ={'graspPoint':'sm_data1', 'counter':'sm_data2', 'maxDebris':'sm_data3'})
+                transitions={'success':'PLAN_TRAJ_TO_GRASP_POINT_RIGHT', 'failure': 'IDENTIFY_GRASP_POINT', 'complete':'SUCCESS'}, 
+                remapping ={'graspPoint':'sm_data1', 'counter':'sm_data2', 'maxDebris':'sm_data3'})
 
             smach.StateMachine.add('PLAN_TRAJ_TO_GRASP_POINT_RIGHT',
                 PlanTrajToGraspPointRight(self.davinciArmLeft, self.davinciArmRight),

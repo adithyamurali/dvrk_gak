@@ -56,7 +56,7 @@ class Start(MasterClass):
 class IdentifyGraspPoint(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
         super(self.__class__, self).__init__()
-        smach.State.__init__(self, outcomes = ['success', 'failure'], output_keys = ['graspPoint', 'counter', 'maxDebris'])
+        smach.State.__init__(self, outcomes = ['success', 'failure', 'complete'], output_keys = ['graspPoint', 'counter', 'maxDebris'])
         self.davinciArmRight = davinciArmRight
         self.davinciArmLeft = davinciArmLeft
         self.graspPoint = None
@@ -77,29 +77,54 @@ class IdentifyGraspPoint(MasterClass):
                 graspPose.frame = msg.header.frame_id
                 self.allGraspPoints[graspCount] = graspPose
                 graspCount += 1
+            self.graspPoint = tfx.pose(self.allGraspPoints[0], copy = True)
             self.graspPointFound = True
 
     def execute(self, userdata):
         print "State: IdentifyGraspPoint"
-        if self.counterDebris == -1:        
-            while True:
-                rospy.sleep(0.1)
-                if self.graspPointFound:
-                    break
-            self.counterDebris += 1
-        self.graspPoint = self.allGraspPoints[self.counterDebris]
+        i = 0
+        self.graspPointFound = False
+        while True:
+            rospy.sleep(0.1)
+            if self.graspPointFound:
+                break
+            if i == 30:
+                return 'complete'
+            i += 1
+        self.counterDebris += 1
         self.graspPoint.position.y += -0.014
         self.graspPoint.position.x += -0.009
         self.graspPoint.position.z += -0.015
+
+        print self.graspPoint
+        # rospy.loginfo('Check graspPoint')
+        # raw_input()
+
         userdata.graspPoint = self.graspPoint
         userdata.counter = self.counterDebris
         userdata.maxDebris = len(self.allGraspPoints)
-        # rospy.loginfo('Pause')
-        # raw_input()
         self.publisher.publish(self.graspPoint.msg.PoseStamped())
-        print 'XXX_ Count', self.counterDebris
         self.counterDebris += 1
         return 'success'
+        # if self.counterDebris == -1:        
+        #     while True:
+        #         rospy.sleep(0.1)
+        #         if self.graspPointFound:
+        #             break
+        #     self.counterDebris += 1
+        # self.graspPoint = self.allGraspPoints[self.counterDebris]
+        # self.graspPoint.position.y += -0.014
+        # self.graspPoint.position.x += -0.009
+        # self.graspPoint.position.z += -0.015
+        # userdata.graspPoint = self.graspPoint
+        # userdata.counter = self.counterDebris
+        # userdata.maxDebris = len(self.allGraspPoints)
+        # # rospy.loginfo('Pause')
+        # # raw_input()
+        # self.publisher.publish(self.graspPoint.msg.PoseStamped())
+        # print 'XXX_ Count', self.counterDebris
+        # self.counterDebris += 1
+        # return 'success'
 
 class PlanTrajToGraspPointRight(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
@@ -265,7 +290,7 @@ class IdentifyCutPoint(MasterClass):
 
         currPoseRight = self.davinciArmRight.getGripperPose()
         currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,-75,0))
-        currPoseRight.position.y += 0.0085
+        currPoseRight.position.y += 0.01
         currPoseRight.position.z += -0.025
         currPoseRight.position.x += 0.004
         currPoseRight.stamp = None
@@ -362,12 +387,12 @@ class Cleaning(MasterClass):
         rospy.loginfo('Done with Cleaning')
         raw_input()
 
-        maxDebris = userdata.maxDebris
-        maxDebris -= 1
-        counter = userdata.counter
-        if counter < maxDebris:
-            return 'loop'
-        return 'success'
+        # maxDebris = userdata.maxDebris
+        # maxDebris -= 1
+        # counter = userdata.counter
+        # if counter < maxDebris:
+        #     return 'loop'
+        return 'loop'
 
 class Abort(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
