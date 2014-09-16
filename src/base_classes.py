@@ -29,8 +29,9 @@ class MasterClass(smach.State):
 
         self.outcomes = None
 
-        self.homePoseLeft = tfx.pose([-0.04907726751924995, 0.027288735500984575, -0.1211606501908539],
-            (0.9835887535507493, -0.09932464655036198, -0.14884734393715604, 0.023070472014753367))
+        self.homePoseLeft = tfx.pose([-0.05009142015689537, 0.03540081898889297, -0.14583058800170023],
+            (-0.01797605558439532, -0.9838454461982115, 0.03728902700169569, 0.17416810237794897))
+
         self.homePoseRight = tfx.pose([0.061241857051286236, 0.014307808069346816, -0.10446866837544996],
             (-0.9689889616996428, 0.1939060552483166, -0.1474787309756946, 0.04136251626876463))
 
@@ -69,6 +70,7 @@ class IdentifyGraspPoint(MasterClass):
         self.publisher = rospy.Publisher("/gak/curr_grasp_pose", PoseStamped)
 
     def grasp_point_callback(self, msg):
+        self.allGraspPoints = {}
         if not self.graspPointFound:
             graspCount = 0
             for graspPose in msg.poses:
@@ -77,8 +79,16 @@ class IdentifyGraspPoint(MasterClass):
                 graspPose.frame = msg.header.frame_id
                 self.allGraspPoints[graspCount] = graspPose
                 graspCount += 1
-            self.graspPoint = tfx.pose(self.allGraspPoints[0], copy = True)
+
+            self.graspPoint = tfx.pose(self.get_grasp_point(self.allGraspPoints.values()), copy = True)
             self.graspPointFound = True
+
+    def get_grasp_point(self, allGraspPoses):
+        ycoord_to_pose_dict = {}
+        for pose in allGraspPoses:
+            ycoord_to_pose_dict[pose.position.y] = pose
+        min_y = min(ycoord_to_pose_dict.keys())
+        return ycoord_to_pose_dict[min_y]
 
     def execute(self, userdata):
         print "State: IdentifyGraspPoint"
@@ -92,13 +102,11 @@ class IdentifyGraspPoint(MasterClass):
                 return 'complete'
             i += 1
         self.counterDebris += 1
-        self.graspPoint.position.y += -0.014
+        self.graspPoint.position.y += -0.015
         self.graspPoint.position.x += -0.009
         self.graspPoint.position.z += -0.015
 
         print self.graspPoint
-        # rospy.loginfo('Check graspPoint')
-        # raw_input()
 
         userdata.graspPoint = self.graspPoint
         userdata.counter = self.counterDebris
@@ -106,25 +114,6 @@ class IdentifyGraspPoint(MasterClass):
         self.publisher.publish(self.graspPoint.msg.PoseStamped())
         self.counterDebris += 1
         return 'success'
-        # if self.counterDebris == -1:        
-        #     while True:
-        #         rospy.sleep(0.1)
-        #         if self.graspPointFound:
-        #             break
-        #     self.counterDebris += 1
-        # self.graspPoint = self.allGraspPoints[self.counterDebris]
-        # self.graspPoint.position.y += -0.014
-        # self.graspPoint.position.x += -0.009
-        # self.graspPoint.position.z += -0.015
-        # userdata.graspPoint = self.graspPoint
-        # userdata.counter = self.counterDebris
-        # userdata.maxDebris = len(self.allGraspPoints)
-        # # rospy.loginfo('Pause')
-        # # raw_input()
-        # self.publisher.publish(self.graspPoint.msg.PoseStamped())
-        # print 'XXX_ Count', self.counterDebris
-        # self.counterDebris += 1
-        # return 'success'
 
 class PlanTrajToGraspPointRight(MasterClass):
     def __init__(self, davinciArmLeft, davinciArmRight):
@@ -243,7 +232,7 @@ class RetractGak(MasterClass):
         # raw_input()
         currPoseRight = self.davinciArmRight.getGripperPose()
         rospy.sleep(1)
-        currPoseRight.position.z += 0.04
+        currPoseRight.position.z += 0.03
 
         self.davinciArmRight.goToGripperPose(currPoseRight, speed=0.005)
         return 'success'
@@ -290,12 +279,15 @@ class IdentifyCutPoint(MasterClass):
 
         currPoseRight = self.davinciArmRight.getGripperPose()
         currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,-75,0))
-        currPoseRight.position.y += 0.01
-        currPoseRight.position.z += -0.025
+        currPoseRight.position.y += 0.007
+        currPoseRight.position.z += -0.03
         currPoseRight.position.x += 0.004
+        currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0))
         currPoseRight.stamp = None
         cutPointCurr = tfx.convertToFrame(currPoseRight, '/one_remote_center_link')
         self.cut_point_pub.publish(cutPointCurr.msg.PoseStamped())
+        # rospy.loginfo('Check cut point')
+        # raw_input()
 
         userdata.cutPoint = cutPointCurr
 
@@ -328,8 +320,6 @@ class MoveToPreCutPoint(MasterClass):
         preCutPoint = tfx.convertToFrame(preCutPoint, '/one_remote_center_link')
 
         print "Left Arm precut", preCutPoint
-        # rospy.loginfo('Enter to MoveToPreCutPoint')
-        # raw_input()
 
         self.davinciArmLeft.setGripperPositionDaVinci(1)
         self.davinciArmLeft.executeInterpolatedTrajectory(preCutPoint)
@@ -384,8 +374,9 @@ class Cleaning(MasterClass):
         self.davinciArmLeft.setGripperPositionDaVinci(1)
         self.davinciArmLeft.goToGripperPose(self.homePoseLeft)
 
-        rospy.loginfo('Done with Cleaning')
-        raw_input()
+        rospy.sleep(3)
+        # rospy.loginfo('Done with Cleaning')
+        # raw_input()
 
         # maxDebris = userdata.maxDebris
         # maxDebris -= 1
