@@ -279,7 +279,7 @@ class IdentifyCutPoint(MasterClass):
 
         currPoseRight = self.davinciArmRight.getGripperPose()
         currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0)).as_tf()*tfx.pose(tfx.tb_angles(0,-75,0))
-        currPoseRight.position.y += 0.007
+        currPoseRight.position.y += 0.009
         currPoseRight.position.z += -0.03
         currPoseRight.position.x += 0.004
         currPoseRight = currPoseRight.as_tf()*tfx.pose(tfx.tb_angles(180,0,0))
