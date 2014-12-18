@@ -103,7 +103,7 @@ class IdentifyGraspPoint(MasterClass):
             i += 1
         self.counterDebris += 1
         self.graspPoint.position.y += -0.015
-        self.graspPoint.position.x += -0.009
+        self.graspPoint.position.x += -0.013
         self.graspPoint.position.z += -0.015
 
         print self.graspPoint
